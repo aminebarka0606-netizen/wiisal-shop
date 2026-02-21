@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<title>Wissal Shop</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+
+<!-- PayPal SDK (client-id provided in your request) -->
+<script src="https://www.paypal.com/sdk/js?client-id=AZcFoZ4i7M8P2K5XyT0sQz&currency=EUR"></script>
+</head>
+<body class="bg-gray-100">
+
+<!-- Navbar -->
+<header class="bg-white shadow p-4">
+  <div class="container mx-auto flex justify-between items-center">
+    <h1 class="font-bold text-xl">Wissal Shop</h1>
+    <nav>
+      <a class="px-4" href="#sport">Sport</a>
+      <a class="px-4" href="#classique">Classique</a>
+      <a class="px-4" href="#cart">Panier</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Produits Sportifs -->
+<section id="sport" class="container mx-auto my-8">
+  <h2 class="text-2xl font-bold mb-4">🏃‍♂️ Sportifs</h2>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="bg-white p-4 shadow rounded">
+      <img src="images/maillot.jpg" alt="Maillot Sport" class="w-full h-48 object-cover rounded">
+      <h3 class="font-semibold mt-2">Maillot Sport</h3>
+      <p>30€</p>
+      <button onclick="addToCart(30,'Maillot Sport')" class="bg-green-500 text-white p-2 mt-2 w-full rounded">Ajouter</button>
+    </div>
+    <div class="bg-white p-4 shadow rounded">
+      <img src="images/chaussures.jpg" alt="Chaussures Sport" class="w-full h-48 object-cover rounded">
+      <h3 class="font-semibold mt-2">Chaussures Sport</h3>
+      <p>60€</p>
+      <button onclick="addToCart(60,'Chaussures Sport')" class="bg-green-500 text-white p-2 mt-2 w-full rounded">Ajouter</button>
+    </div>
+  </div>
+</section>
+
+<!-- Produits Classiques -->
+<section id="classique" class="container mx-auto my-8">
+  <h2 class="text-2xl font-bold mb-4">👔 Classiques</h2>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="bg-white p-4 shadow rounded">
+      <img src="images/costume.jpg" alt="Costume Classique" class="w-full h-48 object-cover rounded">
+      <h3 class="font-semibold mt-2">Costume Classique</h3>
+      <p>120€</p>
+      <button onclick="addToCart(120,'Costume Classique')" class="bg-green-500 text-white p-2 mt-2 w-full rounded">Ajouter</button>
+    </div>
+    <div class="bg-white p-4 shadow rounded">
+      <img src="images/chemise.jpg" alt="Chemise Élégante" class="w-full h-48 object-cover rounded">
+      <h3 class="font-semibold mt-2">Chemise Élégante</h3>
+      <p>40€</p>
+      <button onclick="addToCart(40,'Chemise Élégante')" class="bg-green-500 text-white p-2 mt-2 w-full rounded">Ajouter</button>
+    </div>
+  </div>
+</section>
+
+<!-- Panier -->
+<div id="cart" class="container mx-auto my-8 bg-white p-6 shadow rounded">
+  <h2 class="text-2xl font-bold mb-4">🛒 Panier</h2>
+  <p>Total: <span id="total">0</span> €</p>
+
+  <!-- PayPal Button -->
+  <div id="paypal-button-container" class="mt-4"></div>
+</div>
+
+<footer class="bg-white shadow p-4 mt-8 text-center">
+  © 2026 Wissal Shop - Tous droits réservés
+</footer>
+
+<script>
+let total = 0;
+let cart = [];
+let paypalActions = null;
+
+function updateTotalDisplay(){
+  document.getElementById('total').innerText = total.toFixed(2);
+}
+
+function addToCart(price, name){
+  cart.push({ name: name || 'Item', unit_amount: price, quantity: 1 });
+  total += price;
+  updateTotalDisplay();
+  if (paypalActions && total > 0) paypalActions.enable();
+}
+
+paypal.Buttons({
+    style: {
+        layout: 'vertical',
+        color: 'blue',
+        shape: 'rect',
+        label: 'paypal'
+    },
+    onInit: function(data, actions) {
+      paypalActions = actions;
+      if (total === 0) actions.disable();
+    },
+    createOrder: function(data, actions) {
+        // Send cart to server for order creation
+        return fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cart })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Failed to create order');
+            return res.json();
+        })
+        .then(data => data.id);
+    },
+    onApprove: function(data, actions) {
+        // Capture via server
+        return fetch(`/api/orders/${data.orderID}/capture`, { method: 'POST' })
+        .then(res => {
+            if (!res.ok) throw new Error('Capture failed');
+            return res.json();
+        })
+        .then(details => {
+            alert('Paiement effectué par ' + (details.payer?.name?.given_name || 'client') + ' ! Merci !');
+            cart = [];
+            total = 0;
+            updateTotalDisplay();
+            if (paypalActions) paypalActions.disable();
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Erreur lors de la capture du paiement.');
+        });
+    },
+    onError: function(err){
+        console.error('PayPal error', err);
+        alert('Erreur de paiement. Voir la console pour les détails.');
+    }
+}).render('#paypal-button-container');
+</script>
+
+</body>
+</html>
